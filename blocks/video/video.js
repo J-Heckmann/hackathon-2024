@@ -6,6 +6,8 @@ import { readBlockConfig } from '../../scripts/aem.js';
  * @param {Element} block The video block element
  */
 
+const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+
 function embedYoutube(url, autoplay, background) {
   const usp = new URLSearchParams(url.search);
   let suffix = '';
@@ -108,8 +110,10 @@ const loadVideoEmbed = (block, link, autoplay, background) => {
 
 export default async function decorate(block) {
   const config = readBlockConfig(block);
-  const { link } = config;
+  const { link, autoplay } = config;
   const placeholder = block.querySelector('picture');
+
+  const autoplayVideo = autoplay === 'true';
 
   block.textContent = '';
 
@@ -126,15 +130,27 @@ export default async function decorate(block) {
     wrapper.className = 'video-placeholder';
     wrapper.append(placeholder);
 
-    wrapper.insertAdjacentHTML(
-      'beforeend',
-      '<div class="video-placeholder-play"><button type="button" title="Play"></button></div>',
-    );
-    wrapper.addEventListener('click', () => {
-      wrapper.remove();
-      loadVideoEmbed(block, link, true, false);
-    });
+    if (!autoplayVideo) {
+      wrapper.insertAdjacentHTML(
+        'beforeend',
+        '<div class="video-placeholder-play"><button type="button" title="Play"></button></div>',
+      );
+      wrapper.addEventListener('click', () => {
+        wrapper.remove();
+        loadVideoEmbed(block, link, true, false);
+      });
+    }
 
     block.append(wrapper);
+  }
+  if (!placeholder || autoplayVideo) {
+    const observer = new IntersectionObserver((entries) => {
+      if (entries.some((e) => e.isIntersecting)) {
+        observer.disconnect();
+        const playOnLoad = autoplayVideo && !prefersReducedMotion.matches;
+        loadVideoEmbed(block, link, playOnLoad, autoplayVideo);
+      }
+    });
+    observer.observe(block);
   }
 }
