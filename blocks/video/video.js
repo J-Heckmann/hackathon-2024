@@ -6,13 +6,10 @@ import { readBlockConfig } from '../../scripts/aem.js';
  * @param {Element} block The video block element
  */
 export default function decorate(block) {
-  // Extract configuration from the block
   const config = readBlockConfig(block);
 
-  // Clear the block's contents
   block.textContent = '';
 
-  // Create and append title and description if they exist in the config
   if (config.title) {
     const titleEl = document.createElement('div');
     titleEl.className = 'video-header';
@@ -27,12 +24,10 @@ export default function decorate(block) {
     block.appendChild(descEl);
   }
 
-  // Check if VideoID and type are available
   if (config.videoid && config.type) {
     const videoContainer = document.createElement('div');
-    videoContainer.className = 'video-container';
+    videoContainer.className = 'video-inner-container';
 
-    // Handle different video types
     let iframe;
 
     switch (config.type.toLowerCase()) {
@@ -55,8 +50,8 @@ export default function decorate(block) {
       case 'url':
         const videoEl = document.createElement('video');
         videoEl.controls = true;
-        videoEl.src = config.videoid; // Use videoid as the URL in this case
-        videoEl.type = 'video/mp4'; // Default to mp4, could add more formats
+        videoEl.src = config.videoid;
+        videoEl.type = 'video/mp4'; 
         videoEl.style.width = '100%';
         videoContainer.appendChild(videoEl);
         break;
