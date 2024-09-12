@@ -1,0 +1,29 @@
+.video-container {
+    position: relative;
+    padding-bottom: 56.25%; /* 16:9 aspect ratio */
+    height: 0;
+    overflow: hidden;
+    max-width: 100%;
+    background-color: var(--background-color);
+    margin: 0 auto;
+}
+
+.video-container iframe {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    border: none;
+}
+
+.video .video-header {
+    font-size: var(--body-font-size-md);
+    font-weight: bold;
+    margin-bottom: 8px;
+}
+
+.video .video-description {
+    font-size: var(--body-font-size-sm);
+    margin-bottom: 16px;
+}
