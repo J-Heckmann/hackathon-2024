@@ -5,8 +5,111 @@ import { readBlockConfig } from '../../scripts/aem.js';
  * Supports YouTube, Vimeo, and URL types.
  * @param {Element} block The video block element
  */
-export default function decorate(block) {
+
+function embedYoutube(url, autoplay, background) {
+  const usp = new URLSearchParams(url.search);
+  let suffix = '';
+  if (background || autoplay) {
+    const suffixParams = {
+      autoplay: autoplay ? '1' : '0',
+      mute: background ? '1' : '0',
+      controls: background ? '0' : '1',
+      disablekb: background ? '1' : '0',
+      loop: background ? '1' : '0',
+      playsinline: background ? '1' : '0',
+    };
+    suffix = `&${Object.entries(suffixParams).map(([k, v]) => `${k}=${encodeURIComponent(v)}`).join('&')}`;
+  }
+  let vid = usp.get('v') ? encodeURIComponent(usp.get('v')) : '';
+  const embed = url.pathname;
+  if (url.origin.includes('youtu.be')) {
+    [, vid] = url.pathname.split('/');
+  }
+
+  const temp = document.createElement('div');
+  temp.innerHTML = `<div style="left: 0; width: 100%; height: 0; position: relative; padding-bottom: 56.25%;">
+      <iframe src="https://www.youtube.com${vid ? `/embed/${vid}?rel=0&v=${vid}${suffix}` : embed}" style="border: 0; top: 0; left: 0; width: 100%; height: 100%; position: absolute;" 
+      allow="autoplay; fullscreen; picture-in-picture; encrypted-media; accelerometer; gyroscope; picture-in-picture" allowfullscreen="" scrolling="no" title="Content from Youtube" loading="lazy"></iframe>
+    </div>`;
+  return temp.children.item(0);
+}
+
+function embedVimeo(url, autoplay, background) {
+  const [, video] = url.pathname.split('/');
+  let suffix = '';
+  if (background || autoplay) {
+    const suffixParams = {
+      autoplay: autoplay ? '1' : '0',
+      background: background ? '1' : '0',
+    };
+    suffix = `?${Object.entries(suffixParams).map(([k, v]) => `${k}=${encodeURIComponent(v)}`).join('&')}`;
+  }
+  const temp = document.createElement('div');
+  temp.innerHTML = `<div style="left: 0; width: 100%; height: 0; position: relative; padding-bottom: 56.25%;">
+      <iframe src="https://player.vimeo.com/video/${video}${suffix}" 
+      style="border: 0; top: 0; left: 0; width: 100%; height: 100%; position: absolute;" 
+      frameborder="0" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen  
+      title="Content from Vimeo" loading="lazy"></iframe>
+    </div>`;
+  return temp.children.item(0);
+}
+
+function getVideoElement(source, autoplay, background) {
+  const video = document.createElement('video');
+  video.setAttribute('controls', '');
+  if (autoplay) video.setAttribute('autoplay', '');
+  if (background) {
+    video.setAttribute('loop', '');
+    video.setAttribute('playsinline', '');
+    video.removeAttribute('controls');
+    video.addEventListener('canplay', () => {
+      video.muted = true;
+      if (autoplay) video.play();
+    });
+  }
+
+  const sourceEl = document.createElement('source');
+  sourceEl.setAttribute('src', source);
+  sourceEl.setAttribute('type', `video/${source.split('.').pop()}`);
+  video.append(sourceEl);
+
+  return video;
+}
+
+const loadVideoEmbed = (block, link, autoplay, background) => {
+  if (block.dataset.embedLoaded === 'true') {
+    return;
+  }
+  const url = new URL(link);
+
+  const isYoutube = link.includes('youtube') || link.includes('youtu.be');
+  const isVimeo = link.includes('vimeo');
+
+  if (isYoutube) {
+    const embedWrapper = embedYoutube(url, autoplay, background);
+    block.append(embedWrapper);
+    embedWrapper.querySelector('iframe').addEventListener('load', () => {
+      block.dataset.embedLoaded = true;
+    });
+  } else if (isVimeo) {
+    const embedWrapper = embedVimeo(url, autoplay, background);
+    block.append(embedWrapper);
+    embedWrapper.querySelector('iframe').addEventListener('load', () => {
+      block.dataset.embedLoaded = true;
+    });
+  } else {
+    const videoEl = getVideoElement(link, autoplay, background);
+    block.append(videoEl);
+    videoEl.addEventListener('canplay', () => {
+      block.dataset.embedLoaded = true;
+    });
+  }
+};
+
+export default async function decorate(block) {
   const config = readBlockConfig(block);
+  const { link } = config;
+  const placeholder = block.querySelector('picture');
 
   block.textContent = '';
 
@@ -17,49 +120,21 @@ export default function decorate(block) {
     block.appendChild(titleEl);
   }
 
-  if (config.description) {
-    const descEl = document.createElement('div');
-    descEl.className = 'video-description';
-    descEl.textContent = config.description;
-    block.appendChild(descEl);
-  }
+  if (placeholder) {
+    block.classList.add('placeholder');
+    const wrapper = document.createElement('div');
+    wrapper.className = 'video-placeholder';
+    wrapper.append(placeholder);
 
-  if (config.videoid && config.type) {
-    const videoContainer = document.createElement('div');
-    videoContainer.className = 'video-inner-container';
+    wrapper.insertAdjacentHTML(
+      'beforeend',
+      '<div class="video-placeholder-play"><button type="button" title="Play"></button></div>',
+    );
+    wrapper.addEventListener('click', () => {
+      wrapper.remove();
+      loadVideoEmbed(block, link, true, false);
+    });
 
-    let iframe;
-
-    switch (config.type.toLowerCase()) {
-      case 'youtube':
-        iframe = document.createElement('iframe');
-        iframe.src = `https://www.youtube.com/embed/${config.videoid}?rel=0`;
-        iframe.allow = 'accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture';
-        iframe.allowFullscreen = true;
-        videoContainer.appendChild(iframe);
-        break;
-
-      case 'vimeo':
-        iframe = document.createElement('iframe');
-        iframe.src = `https://player.vimeo.com/video/${config.videoid}`;
-        iframe.allow = 'autoplay; fullscreen; picture-in-picture';
-        iframe.allowFullscreen = true;
-        videoContainer.appendChild(iframe);
-        break;
-
-      case 'url':
-        const videoEl = document.createElement('video');
-        videoEl.controls = true;
-        videoEl.src = config.videoid;
-        videoEl.type = 'video/mp4'; 
-        videoEl.style.width = '100%';
-        videoContainer.appendChild(videoEl);
-        break;
-
-      default:
-        console.error(`Unsupported video type: ${config.type}`);
-    }
-
-    block.appendChild(videoContainer);
+    block.append(wrapper);
   }
 }
