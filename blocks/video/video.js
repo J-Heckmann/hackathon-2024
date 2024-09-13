@@ -3,7 +3,9 @@ import { readBlockConfig } from '../../scripts/aem.js';
 /**
  * Decorates the video block by extracting video information and embedding the video.
  * Supports YouTube, Vimeo, and URL types.
- * @param {Element} block The video block element
+ * @param {
+ * Element, title, description, link, autoplay, variant, textdirection
+ * } block The video block element
  */
 
 const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -110,18 +112,43 @@ const loadVideoEmbed = (block, link, autoplay, background) => {
 
 export default async function decorate(block) {
   const config = readBlockConfig(block);
-  const { link, autoplay } = config;
+
+  const {
+    title, description, link, autoplay, variant, textdirection,
+  } = config;
   const placeholder = block.querySelector('picture');
+
+  if (textdirection === 'right') block.classList.add('text-right');
+  else if (textdirection === 'center') block.classList.add('text-center');
+
+  block.classList.add(String(textdirection));
+
+  if (variant === 'wide') {
+    block.classList.add('wide');
+  }
 
   const autoplayVideo = autoplay === 'true';
 
   block.textContent = '';
 
-  if (config.title) {
-    const titleEl = document.createElement('div');
-    titleEl.className = 'video-header';
-    titleEl.textContent = config.title;
-    block.appendChild(titleEl);
+  if (title || description) {
+    const videoHeader = document.createElement('div');
+    videoHeader.className = 'video-header';
+    if (title) {
+      const titleElement = document.createElement('h3');
+      const titleText = document.createTextNode(title);
+      titleElement.appendChild(titleText);
+      videoHeader.appendChild(titleElement);
+    }
+
+    if (description) {
+      const descriptionElement = document.createElement('p');
+      const descriptionText = document.createTextNode(description);
+      descriptionElement.appendChild(descriptionText);
+      videoHeader.appendChild(descriptionElement);
+    }
+
+    block.appendChild(videoHeader);
   }
 
   if (placeholder) {

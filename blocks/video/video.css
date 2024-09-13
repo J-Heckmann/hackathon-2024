@@ -1,17 +1,23 @@
 .video {
-  text-align: center;
   max-width: 900px;
   margin: 24px auto;
+}
+
+.video.wide {
+  max-width: none;
+  margin: auto;
+}
+
+.video.text-right .video-header{
+  text-align: right;
+}
+.video.text-center .video-header{
+  text-align: center;
 }
 
 .video[data-embed-loaded='false']:not(.placeholder) {
   /* reserve an approximate space to avoid extensive layout shifts */
   aspect-ratio: 16 / 9;
-}
-
-.video > div {
-  display: flex;
-  justify-content: center;
 }
 
 .video video {
@@ -30,6 +36,7 @@
   justify-content: center;
   position: absolute;
   inset: 0;
+  background: #ffffff4d;
 }
 
 .video[data-embed-loaded='true'] .video-placeholder,
